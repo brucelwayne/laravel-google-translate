@@ -8,6 +8,8 @@ use Tanmuhittin\LaravelGoogleTranslate\Api\GoogleApiTranslate;
 use Tanmuhittin\LaravelGoogleTranslate\Api\StichozaApiTranslate;
 use Tanmuhittin\LaravelGoogleTranslate\Api\YandexApiTranslate;
 use Tanmuhittin\LaravelGoogleTranslate\Commands\TranslateFilesCommand;
+use Tanmuhittin\LaravelGoogleTranslate\Commands\TranslateJsonCommand;
+use Tanmuhittin\LaravelGoogleTranslate\Commands\TranslateReactCommand;
 use Tanmuhittin\LaravelGoogleTranslate\Contracts\ApiTranslatorContract;
 use Tanmuhittin\LaravelGoogleTranslate\Helpers\ConfigHelper;
 use Tanmuhittin\LaravelGoogleTranslate\Translators\ApiTranslate;
@@ -22,9 +24,13 @@ class LaravelGoogleTranslateServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+
         $this->commands([
-            TranslateFilesCommand::class
+            TranslateFilesCommand::class,
+            TranslateJsonCommand::class,
+            TranslateReactCommand::class,
         ]);
+        
         $this->publishes([
             __DIR__ . '/config/laravel_google_translate.php' => config_path('laravel_google_translate.php'),
         ]);
@@ -40,14 +46,13 @@ class LaravelGoogleTranslateServiceProvider extends ServiceProvider
         $config = ConfigHelper::getLaravelGoogleTranslateConfig();
 
         $this->app->singleton(ApiTranslatorContract::class, function ($app) use ($config) {
-            if (isset($config['custom_api_translator']) && $config['custom_api_translator']!==null){
+            if (isset($config['custom_api_translator']) && $config['custom_api_translator'] !== null) {
                 $custom_translator = new $config['custom_api_translator']($config['custom_api_translator_key']);
-                if($custom_translator instanceof ApiTranslatorContract)
+                if ($custom_translator instanceof ApiTranslatorContract)
                     return $custom_translator;
                 else
-                    throw new \Exception($config['custom_api_translator'].' must implement '.ApiTranslatorContract::class);
-            }
-            elseif (isset($config['google_translate_api_key']) && $config['google_translate_api_key'] !== null) {
+                    throw new \Exception($config['custom_api_translator'] . ' must implement ' . ApiTranslatorContract::class);
+            } elseif (isset($config['google_translate_api_key']) && $config['google_translate_api_key'] !== null) {
                 return new GoogleApiTranslate($config['google_translate_api_key']);
             } elseif (isset($config['yandex_translate_api_key']) && $config['yandex_translate_api_key'] !== null) {
                 return new YandexApiTranslate($config['yandex_translate_api_key']);
@@ -56,7 +61,7 @@ class LaravelGoogleTranslateServiceProvider extends ServiceProvider
             }
         });
 
-        $this->app->singleton(ApiTranslate::class,function ($app) use ($config){
+        $this->app->singleton(ApiTranslate::class, function ($app) use ($config) {
             return new ApiTranslate(
                 resolve(ApiTranslatorContract::class),
                 $config['api_limit_settings']['no_requests_per_batch'],
@@ -65,7 +70,7 @@ class LaravelGoogleTranslateServiceProvider extends ServiceProvider
         });
 
 
-        $this->app->singleton(ApiTranslateWithAttribute::class,function ($app) use ($config){
+        $this->app->singleton(ApiTranslateWithAttribute::class, function ($app) use ($config) {
             return new ApiTranslateWithAttribute(
                 resolve(ApiTranslatorContract::class),
                 $config['api_limit_settings']['no_requests_per_batch'],

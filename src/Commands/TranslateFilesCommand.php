@@ -3,9 +3,9 @@
 namespace Tanmuhittin\LaravelGoogleTranslate\Commands;
 
 use Illuminate\Console\Command;
+use Tanmuhittin\LaravelGoogleTranslate\Contracts\ApiTranslatorContract;
 use Tanmuhittin\LaravelGoogleTranslate\TranslationFileTranslators\JsonArrayFileTranslator;
 use Tanmuhittin\LaravelGoogleTranslate\TranslationFileTranslators\PhpArrayFileTranslator;
-use Tanmuhittin\LaravelGoogleTranslate\Contracts\ApiTranslatorContract;
 
 class TranslateFilesCommand extends Command
 {
@@ -19,6 +19,7 @@ class TranslateFilesCommand extends Command
 
     protected $translator;
     /**
+     * php artisan translate:files
      * The name and signature of the console command.
      *
      * @var string
@@ -62,7 +63,7 @@ class TranslateFilesCommand extends Command
     {
         //Collect input
         $this->base_locale = $this->ask('What is base locale?', config('app.locale', 'en'));
-        $this->locales = array_filter(explode(",", $this->ask('What are the target locales? Comma seperate each lang key', config('laravel_google_translate.default_target_locales','tr,it'))));
+        $this->locales = array_filter(explode(",", $this->ask('What are the target locales? Comma seperate each lang key', config('laravel_google_translate.default_target_locales', 'tr,it'))));
         $should_force = $this->choice('Force overwrite existing translations?', ['No', 'Yes'], 'No');
         $this->force = false;
         if ($should_force === 'Yes') {
@@ -78,8 +79,7 @@ class TranslateFilesCommand extends Command
         if ($mode === 'json') {
             $this->json = true;
             $file_translator = new JsonArrayFileTranslator($this->base_locale, $this->verbose, $this->force);
-        }
-        else {
+        } else {
             $file_translator = new PhpArrayFileTranslator($this->base_locale, $this->verbose, $this->force);
             $this->target_files = array_filter(explode(",", $this->ask('Are there specific target files to translate only? ex: file1,file2', '')));
             foreach ($this->target_files as $key => $target_file) {
