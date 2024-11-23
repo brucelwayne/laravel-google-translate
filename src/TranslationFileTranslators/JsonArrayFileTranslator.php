@@ -11,6 +11,7 @@ use Tanmuhittin\LaravelGoogleTranslate\Helpers\FileHelper;
 class JsonArrayFileTranslator implements FileTranslatorContract
 {
     use ConsoleHelper;
+
     private $base_locale;
     private $verbose;
     private $force;
@@ -22,7 +23,7 @@ class JsonArrayFileTranslator implements FileTranslatorContract
         $this->force = $force;
     }
 
-    public function handle($target_locale) : void
+    public function handle($target_locale): void
     {
         $stringKeys = $this->explore_strings();
         $existing_translations = $this->fetch_existing_translations($target_locale);
@@ -41,22 +42,6 @@ class JsonArrayFileTranslator implements FileTranslatorContract
         }
         $this->write_translated_strings_to_file($translated_strings, $target_locale);
         return;
-    }
-
-    private function write_translated_strings_to_file($translated_strings,$target_locale){
-        $file = fopen(FileHelper::getFile($target_locale . '.json'), "w+");
-        $write_text = json_encode($translated_strings, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-        fwrite($file, $write_text);
-        fclose($file);
-    }
-
-    private function fetch_existing_translations($target_locale){
-        $existing_translations = [];
-        if (file_exists(FileHelper::getFile($target_locale . '.json'))) {
-            $json_translations_string = file_get_contents(FileHelper::getFile($target_locale . '.json'));
-            $existing_translations = json_decode($json_translations_string, true);
-        }
-        return $existing_translations;
     }
 
     /**
@@ -132,5 +117,23 @@ class JsonArrayFileTranslator implements FileTranslatorContract
         $groupKeys = array_unique($groupKeys); // todo: not supporting group keys for now add this feature!
         $stringKeys = array_unique($stringKeys);
         return $stringKeys;
+    }
+
+    private function fetch_existing_translations($target_locale)
+    {
+        $existing_translations = [];
+        if (file_exists(FileHelper::getFile($target_locale . '.json'))) {
+            $json_translations_string = file_get_contents(FileHelper::getFile($target_locale . '.json'));
+            $existing_translations = json_decode($json_translations_string, true);
+        }
+        return $existing_translations;
+    }
+
+    private function write_translated_strings_to_file($translated_strings, $target_locale)
+    {
+        $file = fopen(FileHelper::getFile($target_locale . '.json'), "w+");
+        $write_text = json_encode($translated_strings, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        fwrite($file, $write_text);
+        fclose($file);
     }
 }

@@ -31,9 +31,9 @@ class TranslateReactCommand extends TranslateFilesCommand
         $this->line("");
         // loop target locales
         foreach ($this->locales as $locale) {
-            if ($locale == $this->base_locale) {
-                continue;
-            }
+//            if ($locale == $this->base_locale) {
+//                continue;
+//            }
             $this->line($this->base_locale . " -> " . $locale . " translating...");
             $file_translator->handle($locale);
             $this->line($this->base_locale . " -> " . $locale . " translated.");

@@ -2,6 +2,7 @@
 
 namespace Tanmuhittin\LaravelGoogleTranslate\TranslationFileTranslators;
 
+use Illuminate\Support\Str;
 use Symfony\Component\Finder\Finder;
 use Tanmuhittin\LaravelGoogleTranslate\Contracts\FileTranslatorContract;
 use Tanmuhittin\LaravelGoogleTranslate\Helpers\ConsoleHelper;
@@ -39,7 +40,9 @@ class ReactArrayFileTranslator implements FileTranslatorContract
 
         $patternUseTranslation = "/useTranslation\s*\(\s*[\"']?(?P<namespace>[\w\/]+)?[\"']?\s*\)/";
         // This pattern captures keys with placeholders like :count
-        $patternTFunction = "/t\s*\(\s*[\"'](?P<key>[^\"']+)[\"']\s*\)/";
+//        $patternTFunction = "/t\s*\(\s*[\"'](?P<key>[^\"']+)[\"']\s*\)/";
+//        $patternTFunction = "/t\s*\(\s*['\"]([^'\"]+)['\"]\s*\)/";
+        $patternTFunction = "/\bt\s*\(\s*['\"]([^'\"]+)['\"]\s*\)/";
         // This pattern captures keys with placeholders and complex objects
         $patternTFunctionWithPlaceholders = "/t\s*\(\s*[\"'](?P<key>[^\"']+(:[^\"']+)*)[\"']\s*,\s*\{.*\}\s*\)/";
 
@@ -52,8 +55,7 @@ class ReactArrayFileTranslator implements FileTranslatorContract
 
             // Extract keys from t() (basic keys without objects)
             preg_match_all($patternTFunction, $contents, $keyMatches);
-            foreach ($keyMatches['key'] as $key) {
-                // Check if key contains placeholders and add it to translation array
+            foreach ($keyMatches[1] as $key) {
                 $translationKeys[$namespace][] = $key;
                 $this->line("Found key in namespace '{$namespace}': {$key}");
             }
@@ -72,7 +74,12 @@ class ReactArrayFileTranslator implements FileTranslatorContract
 
     private function saveTranslations(array $translationKeys, string $target_locale): void
     {
-        $basePath = base_path("resources/react/Locales/{$target_locale}");
+        $basePath = public_path("locales/{$target_locale}");
+
+        if (!array_key_exists('translation', $translationKeys)) {
+            // If 'translation' doesn't exist, create an empty translation file or handle the case
+            $translationKeys['translation'] = [];
+        }
 
         foreach ($translationKeys as $namespace => $keys) {
             $filePath = "{$basePath}/{$namespace}.json";
@@ -85,8 +92,14 @@ class ReactArrayFileTranslator implements FileTranslatorContract
                     continue;
                 }
 
-                // For demonstration purposes, translation is the same as the key
-                $existingTranslations[$key] = addslashes($key);
+                if ($target_locale === $this->base_locale) {
+                    $existingTranslations[$key] = addslashes($key);
+                } else {
+                    // Translate the key using the API (in your case, using Str::apiTranslateWithAttributes)
+                    $translated = addslashes(Str::apiTranslateWithAttributes($key, $target_locale, $this->base_locale));
+                    $existingTranslations[$key] = $translated;
+//                    $existingTranslations[$key] = addslashes($key);
+                }
                 $this->line("Adding translation for '{$key}': {$key}");
             }
 
@@ -107,11 +120,17 @@ class ReactArrayFileTranslator implements FileTranslatorContract
 
     private function writeToFile(string $filePath, array $translations): void
     {
-        if (!is_dir(dirname($filePath))) {
-            mkdir(dirname($filePath), 0755, true);
+        // Ensure the directory exists, create it if necessary
+        $directory = dirname($filePath);  // Get the directory part of the file path
+        if (!is_dir($directory)) {
+            mkdir($directory, 0755, true);  // Create the directory recursively
         }
 
-        $jsonContent = json_encode($translations, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        // Compress the JSON content into a single line (no pretty print)
+        $jsonContent = json_encode($translations, JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT);
+
+        // Save the JSON content to the file
         file_put_contents($filePath, $jsonContent);
     }
+
 }
