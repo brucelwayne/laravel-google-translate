@@ -7,6 +7,7 @@ use Illuminate\Support\Str;
 use Tanmuhittin\LaravelGoogleTranslate\Api\GoogleApiTranslate;
 use Tanmuhittin\LaravelGoogleTranslate\Api\StichozaApiTranslate;
 use Tanmuhittin\LaravelGoogleTranslate\Api\YandexApiTranslate;
+use Tanmuhittin\LaravelGoogleTranslate\Commands\CompressLanguageFileCommand;
 use Tanmuhittin\LaravelGoogleTranslate\Commands\TranslateFilesCommand;
 use Tanmuhittin\LaravelGoogleTranslate\Commands\TranslateJsonCommand;
 use Tanmuhittin\LaravelGoogleTranslate\Commands\TranslateReactCommand;
@@ -29,8 +30,9 @@ class LaravelGoogleTranslateServiceProvider extends ServiceProvider
             TranslateFilesCommand::class,
             TranslateJsonCommand::class,
             TranslateReactCommand::class,
+            CompressLanguageFileCommand::class,
         ]);
-        
+
         $this->publishes([
             __DIR__ . '/config/laravel_google_translate.php' => config_path('laravel_google_translate.php'),
         ]);
