@@ -40,6 +40,7 @@ class JsonArrayFileTranslator implements FileTranslatorContract
             $translated_strings[$to_be_translated] = addslashes(Str::apiTranslateWithAttributes($to_be_translated, $target_locale, $this->base_locale));
             $this->line($to_be_translated . ' : ' . $translated_strings[$to_be_translated]);
         }
+
         $this->write_translated_strings_to_file($translated_strings, $target_locale);
         return;
     }
@@ -85,7 +86,13 @@ class JsonArrayFileTranslator implements FileTranslatorContract
             "\k{quote}" .                                   // Match " or ' previously matched
             "[\),]";                                       // Close parentheses or new parameter
         $finder = new Finder();
-        $finder->in(base_path())->exclude('storage')->exclude('vendor')->name('*.php')->name('*.twig')->name('*.vue')->files();
+        $finder->in(base_path())
+            ->exclude('storage')
+            ->exclude('vendor')
+            ->name('*.php')
+            ->name('*.twig')
+            ->name('*.vue')
+            ->files();
         /** @var \Symfony\Component\Finder\SplFileInfo $file */
         foreach ($finder as $file) {
             // Search the current file for the pattern
@@ -113,6 +120,41 @@ class JsonArrayFileTranslator implements FileTranslatorContract
                 }
             }
         }
+
+        $finder = new Finder();
+        $finder->in(resource_path())
+            ->name('*.php')
+            ->name('*.twig')
+            ->name('*.vue')
+            ->files();
+        /** @var \Symfony\Component\Finder\SplFileInfo $file */
+        foreach ($finder as $file) {
+            // Search the current file for the pattern
+            if (preg_match_all("/$groupPattern/siU", $file->getContents(), $matches)) {
+                // Get all matches
+                foreach ($matches[2] as $key) {
+                    $groupKeys[] = $key;
+                }
+            }
+            if (preg_match_all("/$stringPattern/siU", $file->getContents(), $matches)) {
+                foreach ($matches['string'] as $key) {
+                    if (preg_match("/(^[a-zA-Z0-9_-]+([.][^\1)\ ]+)+$)/siU", $key, $groupMatches)) {
+                        // group{.group}.key format, already in $groupKeys but also matched here
+                        // do nothing, it has to be treated as a group
+                        continue;
+                    }
+                    //TODO: This can probably be done in the regex, but I couldn't do it.
+                    //skip keys which contain namespacing characters, unless they also contain a
+                    //space, which makes it JSON.
+                    if (!(mb_strpos($key, '::') !== FALSE && mb_strpos($key, '.') !== FALSE)
+                        || mb_strpos($key, ' ') !== FALSE) {
+                        $stringKeys[] = $key;
+                        $this->line('Found : ' . $key);
+                    }
+                }
+            }
+        }
+
         // Remove duplicates
         $groupKeys = array_unique($groupKeys); // todo: not supporting group keys for now add this feature!
         $stringKeys = array_unique($stringKeys);
