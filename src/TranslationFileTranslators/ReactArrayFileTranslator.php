@@ -44,9 +44,20 @@ class ReactArrayFileTranslator implements FileTranslatorContract
 //        $patternTFunction = "/t\s*\(\s*['\"]([^'\"]+)['\"]\s*\)/";
         $patternTFunction = "/\bt\s*\(\s*['\"]([^'\"]+)['\"]\s*\)/";
         // This pattern captures keys with placeholders and complex objects
-        $patternTFunctionWithPlaceholders = "/t\s*\(\s*[\"'](?P<key>[^\"']+(:[^\"']+)*)[\"']\s*,\s*\{.*\}\s*\)/";
+//        $patternTFunctionWithPlaceholders = "/t\s*\(\s*[\"'](?P<key>[^\"']+(:[^\"']+)*)[\"']\s*,\s*\{.*\}\s*\)/";
+        //react i18n的占位符，试试看
+//        $patternTFunctionWithPlaceholders = "/t\s*\(\s*['\"]([^'\"]+(\{\{[^}]+\}\})*)['\"]\s*,/";
+//        $patternTFunctionWithPlaceholders = "/t\s*\(\s*['\"]([^'\"]+(\{\{[^}]+\}\})*)['\"]\s*,\s*\{.*\}\s*\)/";
+//        $patternTFunctionWithPlaceholders = "/t\s*\(\s*['\"]([^'\"]+(\{\{[^}]+\}\})*)['\"]\s*,/";
+//        $patternTFunctionWithPlaceholders = "/t\s*\(\s*['\"]([^'\"]*?\{\{[^}]+\}\}[^'\"]*?)['\"]\s*,/s";
+        $patternTFunctionWithPlaceholders = "/t\s*\(\s*['\"](.*?)['\"]\s*,/";
+
 
         foreach ($finder as $file) {
+//            if (Str::contains($file, 'Dashboard')) {
+//                echo $file . "\n";
+//            }
+
             $contents = $file->getContents();
 
             // Extract namespace from useTranslation()
@@ -62,10 +73,15 @@ class ReactArrayFileTranslator implements FileTranslatorContract
 
             // Extract keys with placeholders like :count or complex keys with objects
             preg_match_all($patternTFunctionWithPlaceholders, $contents, $keyMatchesWithPlaceholders);
-            foreach ($keyMatchesWithPlaceholders['key'] as $key) {
+
+            foreach ($keyMatchesWithPlaceholders[1] as $key) {
                 $translationKeys[$namespace][] = $key;
                 $this->line("Found key with placeholder in namespace '{$namespace}': {$key}");
             }
+
+//            foreach ($keyMatchesWithPlaceholders[1] as $key) {
+//                echo "Found key with placeholder: {$key}\n";
+//            }
         }
 
         return $translationKeys;
