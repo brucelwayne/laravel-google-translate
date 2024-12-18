@@ -66,6 +66,7 @@ class ReactArrayFileTranslator implements FileTranslatorContract
 
             // Extract keys from t() (basic keys without objects)
             preg_match_all($patternTFunction, $contents, $keyMatches);
+
             foreach ($keyMatches[1] as $key) {
                 $translationKeys[$namespace][] = $key;
                 $this->line("Found key in namespace '{$namespace}': {$key}");
@@ -92,12 +93,15 @@ class ReactArrayFileTranslator implements FileTranslatorContract
     {
         $basePath = public_path("locales/{$target_locale}");
 
-        if (!array_key_exists('translation', $translationKeys)) {
-            // If 'translation' doesn't exist, create an empty translation file or handle the case
-            $translationKeys['translation'] = [];
-        }
+//        if (!array_key_exists('translation', $translationKeys)) {
+//            // If 'translation' doesn't exist, create an empty translation file or handle the case
+//            $translationKeys['translation'] = [];
+//        }
 
         foreach ($translationKeys as $namespace => $keys) {
+            if (empty($namespace)){
+                $namespace = 'translation';
+            }
             $filePath = "{$basePath}/{$namespace}.json";
             $existingTranslations = $this->loadExistingTranslations($filePath);
 
