@@ -85,71 +85,50 @@ class JsonArrayFileTranslator implements FileTranslatorContract
             "(?P<string>(?:\\\k{quote}|(?!\k{quote}).)*)" . // Match any string that can be {quote} escaped
             "\k{quote}" .                                   // Match " or ' previously matched
             "[\),]";                                       // Close parentheses or new parameter
-        $finder = new Finder();
-        $finder->in(base_path())
-            ->exclude('storage')
-            ->exclude('vendor')
-            ->name('*.php')
-            ->name('*.twig')
-            ->name('*.vue')
-            ->files();
-        /** @var \Symfony\Component\Finder\SplFileInfo $file */
-        foreach ($finder as $file) {
-            // Search the current file for the pattern
-            if (preg_match_all("/$groupPattern/siU", $file->getContents(), $matches)) {
-                // Get all matches
-                foreach ($matches[2] as $key) {
-                    $groupKeys[] = $key;
-                }
-            }
-            if (preg_match_all("/$stringPattern/siU", $file->getContents(), $matches)) {
-                foreach ($matches['string'] as $key) {
-                    if (preg_match("/(^[a-zA-Z0-9_-]+([.][^\1)\ ]+)+$)/siU", $key, $groupMatches)) {
-                        // group{.group}.key format, already in $groupKeys but also matched here
-                        // do nothing, it has to be treated as a group
-                        continue;
-                    }
-                    //TODO: This can probably be done in the regex, but I couldn't do it.
-                    //skip keys which contain namespacing characters, unless they also contain a
-                    //space, which makes it JSON.
-                    if (!(mb_strpos($key, '::') !== FALSE && mb_strpos($key, '.') !== FALSE)
-                        || mb_strpos($key, ' ') !== FALSE) {
-                        $stringKeys[] = $key;
-                        $this->line('Found : ' . $key);
-                    }
-                }
-            }
-        }
 
-        $finder = new Finder();
-        $finder->in(resource_path())
-            ->name('*.php')
-            ->name('*.twig')
-            ->name('*.vue')
-            ->files();
-        /** @var \Symfony\Component\Finder\SplFileInfo $file */
-        foreach ($finder as $file) {
-            // Search the current file for the pattern
-            if (preg_match_all("/$groupPattern/siU", $file->getContents(), $matches)) {
-                // Get all matches
-                foreach ($matches[2] as $key) {
-                    $groupKeys[] = $key;
-                }
+        // Define directories to scan
+        $directories = [
+            base_path('vendor/brucelwayne'), // Add vendor/brucelwayne
+            base_path('vendor/mallria'),     // Add vendor/mallria
+            resource_path(),                 // Keep resource_path
+        ];
+
+        foreach ($directories as $directory) {
+            if (!is_dir($directory)) {
+                $this->line("Directory not found, skipping: {$directory}");
+                continue;
             }
-            if (preg_match_all("/$stringPattern/siU", $file->getContents(), $matches)) {
-                foreach ($matches['string'] as $key) {
-                    if (preg_match("/(^[a-zA-Z0-9_-]+([.][^\1)\ ]+)+$)/siU", $key, $groupMatches)) {
-                        // group{.group}.key format, already in $groupKeys but also matched here
-                        // do nothing, it has to be treated as a group
-                        continue;
+
+            $finder = new Finder();
+            $finder->in($directory)
+                ->exclude(['storage', 'vendor']) // Exclude nested vendor and storage
+                ->name('*.php')
+                ->name('*.twig')
+                ->name('*.vue')
+                ->files();
+
+            /** @var \Symfony\Component\Finder\SplFileInfo $file */
+            foreach ($finder as $file) {
+                // Search the current file for the pattern
+                if (preg_match_all("/$groupPattern/siU", $file->getContents(), $matches)) {
+                    // Get all matches
+                    foreach ($matches[2] as $key) {
+                        $groupKeys[] = $key;
                     }
-                    //TODO: This can probably be done in the regex, but I couldn't do it.
-                    //skip keys which contain namespacing characters, unless they also contain a
-                    //space, which makes it JSON.
-                    if (!(mb_strpos($key, '::') !== FALSE && mb_strpos($key, '.') !== FALSE)
-                        || mb_strpos($key, ' ') !== FALSE) {
-                        $stringKeys[] = $key;
-                        $this->line('Found : ' . $key);
+                }
+                if (preg_match_all("/$stringPattern/siU", $file->getContents(), $matches)) {
+                    foreach ($matches['string'] as $key) {
+                        if (preg_match("/(^[a-zA-Z0-9_-]+([.][^\1)\ ]+)+$)/siU", $key, $groupMatches)) {
+                            // group{.group}.key format, already in $groupKeys but also matched here
+                            // do nothing, it has to be treated as a group
+                            continue;
+                        }
+                        // Skip keys with namespacing characters unless they contain a space
+                        if (!(mb_strpos($key, '::') !== false && mb_strpos($key, '.') !== false)
+                            || mb_strpos($key, ' ') !== false) {
+                            $stringKeys[] = $key;
+                            $this->line('Found : ' . $key);
+                        }
                     }
                 }
             }
