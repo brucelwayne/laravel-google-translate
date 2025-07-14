@@ -105,9 +105,9 @@ class ReactArrayFileTranslator implements FileTranslatorContract
                 }
 
                 if ($target_locale === $this->base_locale) {
-                    $existingTranslations[$key] = addslashes($key);
+                    $existingTranslations[$key] = $key;
                 } else {
-                    $translated = addslashes(Str::apiTranslateWithAttributes($key, $target_locale, $this->base_locale));
+                    $translated = Str::apiTranslateWithAttributes($key, $target_locale, $this->base_locale);
                     $this->line("Translating '{$key}' to '{$translated}' for locale '{$target_locale}'");
                     $existingTranslations[$key] = $translated;
                 }
