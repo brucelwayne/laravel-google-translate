@@ -36,77 +36,69 @@ class ReactArrayFileTranslator implements FileTranslatorContract
         $finder->in(base_path('resources/react'))
             ->name('*.js')
             ->name('*.jsx')
+            ->name('*.tsx') // 添加对 .tsx 文件的支持（如果使用 TypeScript）
             ->files();
 
-        $patternUseTranslation = "/useTranslation\s*\(\s*[\"']?(?P<namespace>[\w\/]+)?[\"']?\s*\)/";
-        // This pattern captures keys with placeholders like :count
-//        $patternTFunction = "/t\s*\(\s*[\"'](?P<key>[^\"']+)[\"']\s*\)/";
-//        $patternTFunction = "/t\s*\(\s*['\"]([^'\"]+)['\"]\s*\)/";
-        $patternTFunction = "/\bt\s*\(\s*['\"]([^'\"]+)['\"]\s*\)/";
-        // This pattern captures keys with placeholders and complex objects
-//        $patternTFunctionWithPlaceholders = "/t\s*\(\s*[\"'](?P<key>[^\"']+(:[^\"']+)*)[\"']\s*,\s*\{.*\}\s*\)/";
-        //react i18n的占位符，试试看
-//        $patternTFunctionWithPlaceholders = "/t\s*\(\s*['\"]([^'\"]+(\{\{[^}]+\}\})*)['\"]\s*,/";
-//        $patternTFunctionWithPlaceholders = "/t\s*\(\s*['\"]([^'\"]+(\{\{[^}]+\}\})*)['\"]\s*,\s*\{.*\}\s*\)/";
-//        $patternTFunctionWithPlaceholders = "/t\s*\(\s*['\"]([^'\"]+(\{\{[^}]+\}\})*)['\"]\s*,/";
-//        $patternTFunctionWithPlaceholders = "/t\s*\(\s*['\"]([^'\"]*?\{\{[^}]+\}\}[^'\"]*?)['\"]\s*,/s";
-        $patternTFunctionWithPlaceholders = "/t\s*\(\s*['\"](.*?)['\"]\s*,/";
-
+        $patternUseTranslation = "/useTranslation\s*\(\s*['\"]?([\w\/-]+)?['\"]?\s*\)/";
+        // 匹配 t('key') 或 t("key")，包括 JSX 属性中的 {t('key')}
+        $patternTFunction = '/\bt\s*\(\s*([\'"])(.*?)\1/s';
+        // 匹配带占位符或额外参数的 t() 调用，包括 JSX 属性
+        $patternTFunctionWithPlaceholders = "/\{?\s*\bt\s*\(\s*['\"]([^'\"]*?(?:\{\{[^}]+\}\}[^'\"]*?)*)['\"]\s*(?:,\s*\{.*?\})?\s*\}?\s*/s";
 
         foreach ($finder as $file) {
-//            if (Str::contains($file, 'Dashboard')) {
-//                echo $file . "\n";
-//            }
-
             $contents = $file->getContents();
+
+            // 调试：输出文件路径
+            $this->line("Processing file: {$file->getPathname()}");
 
             // Extract namespace from useTranslation()
             preg_match_all($patternUseTranslation, $contents, $namespaceMatches);
-            $namespace = $namespaceMatches['namespace'][0] ?? 'translation';
+            $namespace = $namespaceMatches[1][0] ?? 'translation';
+            $this->line("Detected namespace: {$namespace}");
 
-            // Extract keys from t() (basic keys without objects)
+            // Extract simple t() keys
             preg_match_all($patternTFunction, $contents, $keyMatches);
 
-            foreach ($keyMatches[1] as $key) {
+            foreach ($keyMatches[2] as $key) { // 注意这里是 [2]，因为正则用了2个捕获组
                 $translationKeys[$namespace][] = $key;
                 $this->line("Found key in namespace '{$namespace}': {$key}");
+
+                if (stripos($key, 'one-time code') !== false) {
+                    $this->line("🔍 Matched one-time code string: {$key}");
+                }
             }
 
-            // Extract keys with placeholders like :count or complex keys with objects
+            // Extract t() keys with placeholders or in JSX
             preg_match_all($patternTFunctionWithPlaceholders, $contents, $keyMatchesWithPlaceholders);
-
             foreach ($keyMatchesWithPlaceholders[1] as $key) {
                 $translationKeys[$namespace][] = $key;
-                $this->line("Found key with placeholder in namespace '{$namespace}': {$key}");
-            }
+                $this->line("Found key with placeholder or JSX in namespace '{$namespace}': {$key}");
 
-//            foreach ($keyMatchesWithPlaceholders[1] as $key) {
-//                echo "Found key with placeholder: {$key}\n";
-//            }
+                if (stripos($key, 'one-time code') !== false) {
+                    $this->line("🔍 Matched one-time code string (with placeholder): {$key}");
+                }
+            }
+        }
+
+        // 去重翻译键
+        foreach ($translationKeys as $namespace => $keys) {
+            $translationKeys[$namespace] = array_unique($keys);
         }
 
         return $translationKeys;
     }
 
-
     private function saveTranslations(array $translationKeys, string $target_locale): void
     {
         $basePath = public_path("locales/{$target_locale}");
-
-//        if (!array_key_exists('translation', $translationKeys)) {
-//            // If 'translation' doesn't exist, create an empty translation file or handle the case
-//            $translationKeys['translation'] = [];
-//        }
-
         foreach ($translationKeys as $namespace => $keys) {
-            if (empty($namespace)){
+            if (empty($namespace)) {
                 $namespace = 'translation';
             }
             $filePath = "{$basePath}/{$namespace}.json";
             $existingTranslations = $this->loadExistingTranslations($filePath);
 
             foreach ($keys as $key) {
-                // Skip if translation already exists and force is not enabled
                 if (isset($existingTranslations[$key]) && !$this->force) {
                     $this->line("Skipping existing translation: {$key}");
                     continue;
@@ -115,12 +107,11 @@ class ReactArrayFileTranslator implements FileTranslatorContract
                 if ($target_locale === $this->base_locale) {
                     $existingTranslations[$key] = addslashes($key);
                 } else {
-                    // Translate the key using the API (in your case, using Str::apiTranslateWithAttributes)
                     $translated = addslashes(Str::apiTranslateWithAttributes($key, $target_locale, $this->base_locale));
+                    $this->line("Translating '{$key}' to '{$translated}' for locale '{$target_locale}'");
                     $existingTranslations[$key] = $translated;
-//                    $existingTranslations[$key] = addslashes($key);
                 }
-                $this->line("Adding translation for '{$key}': {$key}");
+                $this->line("Adding translation for '{$key}': {$existingTranslations[$key]}");
             }
 
             $this->writeToFile($filePath, $existingTranslations);
